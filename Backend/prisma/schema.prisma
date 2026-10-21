@@ -13,3 +13,123 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  trips Trip[]
+}
+
+model Trip {
+  id                 String   @id @default(cuid())
+  userId             String
+  name               String
+  startDate          DateTime
+  endDate            DateTime
+  startTime          String
+  endTime            String
+  transportationMode String
+  groupSize          Int      @default(1)
+  travelStyle        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destinations TripDestination[]
+  interests    TripInterest[]
+  itineraries  Itinerary[]
+
+  @@index([userId])
+}
+
+model Destination {
+  id            String   @id @default(cuid())
+  googlePlaceId String   @unique
+  name          String
+  address       String?
+  latitude      Float
+  longitude     Float
+  openingHours  Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trips TripDestination[]
+  stops ItineraryStop[]
+}
+
+model TripDestination {
+  id            String   @id @default(cuid())
+  tripId        String
+  destinationId String
+  priority      Int      @default(0)
+  required      Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  trip        Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, destinationId])
+  @@index([tripId])
+}
+
+model TripInterest {
+  id        String   @id @default(cuid())
+  tripId    String
+  interest  String
+  createdAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, interest])
+}
+
+model Itinerary {
+  id        String   @id @default(cuid())
+  tripId    String
+  strategy  String
+  score     Float?
+  status    String   @default("DRAFT")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  days ItineraryDay[]
+
+  @@index([tripId])
+}
+
+model ItineraryDay {
+  id          String   @id @default(cuid())
+  itineraryId String
+  date        DateTime
+  startTime   String
+  endTime     String
+
+  itinerary Itinerary       @relation(fields: [itineraryId], references: [id], onDelete: Cascade)
+  stops     ItineraryStop[]
+
+  @@unique([itineraryId, date])
+}
+
+model ItineraryStop {
+  id                         String @id @default(cuid())
+  itineraryDayId             String
+  destinationId              String
+  sequence                   Int
+  arrivalTime                String
+  departureTime              String
+  visitDurationMinutes       Int
+  travelDurationFromPrevious Int?
+  travelDistanceFromPrevious Float?
+
+  itineraryDay ItineraryDay @relation(fields: [itineraryDayId], references: [id], onDelete: Cascade)
+  destination  Destination  @relation(fields: [destinationId], references: [id])
+
+  @@unique([itineraryDayId, sequence])
+  @@index([destinationId])
+}
